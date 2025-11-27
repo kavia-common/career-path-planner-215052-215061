@@ -1,7 +1,7 @@
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from src.core.auth import supabase_user_from_jwt, AuthUser, AdminGuard
+from src.core.auth import AuthUser, AdminGuard
 from src.core.supabase_client import SupabaseClient
 from src.models.schemas import Role, RoleIn
 
@@ -15,20 +15,24 @@ router = APIRouter(prefix="/roles", tags=["roles"])
     description="Returns the list of roles from catalog.",
 )
 async def list_roles(
-    authorization: str = Header(..., description="Bearer <Supabase JWT>"),
-    user: AuthUser = Depends(supabase_user_from_jwt),
+    authorization: Optional[str] = Header(None, description="Optional: Bearer <Supabase JWT> for personalized RLS; falls back to anon read"),
 ):
     """
     List roles from the catalog.
 
     Auth:
-        Public for authenticated users. RLS will constrain visibility via the user's token.
+        - If Authorization is provided, uses the user's JWT (RLS via user).
+        - If missing, falls back to anon key allowing public read where RLS permits.
 
     Returns:
-        List[Role]: All roles ordered by id.
+        List[Role]: Roles ordered by id.
     """
-    token = authorization.split(" ", 1)[1]
-    client = SupabaseClient.user_mode(token)
+    # Choose client mode
+    if authorization and authorization.lower().startswith("bearer "):
+        token = authorization.split(" ", 1)[1]
+        client = SupabaseClient.user_mode(token)
+    else:
+        client = SupabaseClient.anon_mode()
     try:
         resp = await client.get(
             "roles",
@@ -48,17 +52,23 @@ async def list_roles(
 )
 async def get_role(
     role_id: int,
-    authorization: str = Header(..., description="Bearer <Supabase JWT>"),
-    user: AuthUser = Depends(supabase_user_from_jwt),
+    authorization: Optional[str] = Header(None, description="Optional: Bearer <Supabase JWT>; falls back to anon read"),
 ):
     """
     Fetch one role by id.
 
+    Auth:
+        - If Authorization is provided, uses user's JWT (RLS via user).
+        - Otherwise uses anon key for public read.
+
     Raises:
         HTTPException 404 if role not found.
     """
-    token = authorization.split(" ", 1)[1]
-    client = SupabaseClient.user_mode(token)
+    if authorization and authorization.lower().startswith("bearer "):
+        token = authorization.split(" ", 1)[1]
+        client = SupabaseClient.user_mode(token)
+    else:
+        client = SupabaseClient.anon_mode()
     try:
         resp = await client.get(
             "roles",

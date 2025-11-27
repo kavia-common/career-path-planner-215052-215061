@@ -9,8 +9,9 @@ class SupabaseClient:
     """
     Lightweight wrapper around Supabase PostgREST endpoints.
 
-    Two modes:
-    - user_mode(token): uses user's JWT to honor RLS policies for end-user requests.
+    Modes:
+    - user_mode(token): uses user's JWT to honor RLS for end-user requests.
+    - anon_mode(): uses anon/public key to allow public reads where RLS permits.
     - admin_mode(): uses service role key to bypass RLS for administrative operations.
     """
 
@@ -18,8 +19,14 @@ class SupabaseClient:
         settings = get_settings()
         self.base_url: str = f"{settings.supabase_url}/rest/v1"
         self.apikey: str = settings.supabase_anon_key if not admin else settings.supabase_service_role_key
-        # Authorization uses service role if admin, otherwise the provided user token
-        auth_token = self.apikey if admin else (token or "")
+        # Authorization:
+        # - admin: service role key
+        # - user: provided JWT
+        # - anon (no token): anon key to support public reads
+        if admin:
+            auth_token = self.apikey
+        else:
+            auth_token = token if token is not None else self.apikey
         self.authorization: str = f"Bearer {auth_token}"
         self._client: httpx.AsyncClient = httpx.AsyncClient(timeout=20.0)
 
@@ -28,6 +35,12 @@ class SupabaseClient:
     def user_mode(cls, token: str) -> "SupabaseClient":
         """Create client using user's JWT (RLS enabled)."""
         return cls(token=token, admin=False)
+
+    @classmethod
+    # PUBLIC_INTERFACE
+    def anon_mode(cls) -> "SupabaseClient":
+        """Create client using anon/public key (RLS applies to 'anon' role)."""
+        return cls(token=None, admin=False)
 
     @classmethod
     # PUBLIC_INTERFACE
@@ -49,7 +62,10 @@ class SupabaseClient:
 
     async def post(self, path: str, json: Any) -> httpx.Response:
         url = f"{self.base_url}/{path}"
-        return await self._client.post(url, headers=self._headers(), json=json)
+        headers = self._headers()
+        # Ensure we get the created representation back
+        headers["Prefer"] = "return=representation"
+        return await self._client.post(url, headers=headers, json=json)
 
     async def patch(self, path: str, json: Any, params: Optional[Dict[str, Any]] = None) -> httpx.Response:
         url = f"{self.base_url}/{path}"
