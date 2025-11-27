@@ -28,31 +28,43 @@ Schema synchronization (Neon):
   python -m src.cli_sync_schema
   This reads DATABASE_URL and executes idempotent CREATE/ALTER statements for roles, competencies, role_competencies, and role_adjacency, printing concise logs.
 
-JSON catalog seeding (idempotent):
-- Place the following optional files under career_planner_backend/data:
-  * roles.json
-  * competencies.json
-  * role_adjacency.json
-  * role_competencies.json
-- File formats:
-  * roles.json: [{ "id"?: int, "code": str, "name": str, "summary"?: str }, ...]
-  * competencies.json: [{ "id"?: int, "code": str, "name": str, "category"?: str }, ...]
-  * role_adjacency.json: [{ "from_role_id": int, "to_role_id": int, "weight": number }, ...]
-  * role_competencies.json: [{ "role_id": int, "competency_id": int, "required_level": int }, ...]
+Full database seed (users, roles, competencies, adjacency, mappings, plans, goals):
+- Run the comprehensive seeder which will:
+  * Verify DATABASE_URL,
+  * run schema sync,
+  * upsert from JSON files if present (see file names below),
+  * otherwise insert a robust minimal dataset,
+  * and verify key /db/* endpoints if BACKEND URL env is provided.
+  
+  Command:
+    python -m src.seed_full_cli
+
+JSON seed files (all optional; place under career_planner_backend/data):
+  * roles.json                  # [{ "id"?: int, "code": str, "name": str, "summary"?: str }, ...]
+  * competencies.json           # [{ "id"?: int, "code": str, "name": str, "category"?: str }, ...]
+  * role_adjacency.json         # [{ "from_role_id": int, "to_role_id": int, "weight": number }, ...]
+  * role_competencies.json      # [{ "role_id": int, "competency_id": int, "required_level": int }, ...]
+  * users.json                  # [{ "name": str, "email": str }, ...]   # for simple /db/users table
+  * plans.json                  # [{ "user_id": str, "title": str, "target_role_id"?: int }, ...]
+  * goals.json                  # [{ "plan_id": int, "description": str, "status"?: str }, ...]
+
 - Missing files are skipped with a warning. Safe to run multiple times.
 - Unique keys used for idempotency:
   * roles: code
   * competencies: code
   * role_adjacency: (from_role_id, to_role_id)
   * role_competencies: (role_id, competency_id)
+  * users(simple): email
+  * plans: (user_id, title)
+  * goals: (plan_id, description)
 
 Diagnostics:
-- Console will print concise startup messages including JSON seed results, e.g.:
-  [startup] JSON seed: {'ok': True, 'roles': 'ins:10,upd:0', ...}
+- Console will print concise messages, e.g.:
+  [seed-full] seed summary: {"mode":"json","roles":"ins:10,upd:0", ...}
 
 - You can GET /health/db to verify connectivity.
 
 Additional DB endpoints (demo):
 - GET /db/users — list users from a simple demo `users` table (id, name, email)
 - GET /db/users/{user_id} — fetch a single user by id
-These use DATABASE_URL via SQLAlchemy and auto-create/seed two rows (Alice, Bob) idempotently on startup.
+These use DATABASE_URL via SQLAlchemy and auto-create/seed two rows (Alice, Bob) idempotently on startup. The full seeder can add more demo users via users.json.
