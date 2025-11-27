@@ -71,6 +71,10 @@ def create_app() -> FastAPI:
     app.include_router(gap_analysis.router)
     app.include_router(admin.router)
 
+    # Optional direct-DB catalog endpoints (Neon via SQLAlchemy)
+    from src.routers import catalog_db  # local import to avoid circulars at module import time
+    app.include_router(catalog_db.router)
+
     @app.get("/", tags=["health"], summary="Health Check")
     def health_check() -> dict:
         """

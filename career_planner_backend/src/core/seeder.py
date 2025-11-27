@@ -279,6 +279,7 @@ def seed_catalog_from_json() -> Dict[str, Any]:
     """
     Seed roles, competencies, role adjacency, and role competencies from JSON files in data/.
 
+    If JSON files are absent, insert a minimal demo catalog (idempotent) to enable UI exploration.
     Returns:
         dict: Summary of seeding actions taken per dataset.
     """
@@ -302,6 +303,27 @@ def seed_catalog_from_json() -> Dict[str, Any]:
     with SessionLocal() as db:
         # Ensure tables exist to receive data
         _ensure_catalog_tables(db)
+
+        # If no JSON provided at all, seed a minimal built-in catalog
+        if roles is None and competencies is None and adjacency is None and mappings is None:
+            roles = [
+                {"code": "CA", "name": "Chief Architect", "summary": "Leads enterprise architecture and guardrails."},
+                {"code": "CTO", "name": "Chief Technology Officer", "summary": "Owns platform bets, DX, reliability."},
+            ]
+            competencies = [
+                {"code": "DX", "name": "Developer Experience", "category": "Engineering"},
+                {"code": "RA", "name": "Reference Architectures", "category": "Architecture"},
+            ]
+            adjacency = [
+                {"from_role_id": 1, "to_role_id": 2, "weight": 0.9},
+                {"from_role_id": 2, "to_role_id": 1, "weight": 0.7},
+            ]
+            mappings = [
+                {"role_id": 1, "competency_id": 1, "required_level": 3},
+                {"role_id": 1, "competency_id": 2, "required_level": 4},
+                {"role_id": 2, "competency_id": 1, "required_level": 4},
+                {"role_id": 2, "competency_id": 2, "required_level": 3},
+            ]
 
         # Upsert in dependency-friendly order
         if roles is not None:

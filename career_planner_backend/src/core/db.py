@@ -91,11 +91,21 @@ def init_db() -> None:
     Create database schema for all ORM models if migrations are not present.
 
     Safe to call on startup; no-op if tables already exist.
+    Also ensures lightweight catalog tables (roles/competencies/role_adjacency/role_competencies)
+    are present via ORM definitions.
     """
     if engine is None:
         return
     # Import models so they are registered with Base before create_all
-    from src.models.orm import User, CareerPlan, Goal  # noqa: F401
+    from src.models.orm import (  # noqa: F401
+        User,
+        CareerPlan,
+        Goal,
+        Role,
+        Competency,
+        RoleAdjacency,
+        RoleCompetency,
+    )
 
     Base.metadata.create_all(bind=engine)
 

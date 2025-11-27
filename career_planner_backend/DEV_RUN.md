@@ -18,9 +18,10 @@ Database configuration:
 - Set DATABASE_URL in your environment (see .env.example for format). Neon/Supabase Postgres URLs are supported.
 - On startup, the app:
   * pings the DB,
-  * creates the initial schema (users, career_plans, goals) if missing,
+  * creates the initial schema (users, career_plans, goals, roles, competencies, role_adjacency, role_competencies) if missing,
   * seeds minimal demo data idempotently (demo user, one plan, one goal),
   * and then attempts JSON-based catalog seeding from career_planner_backend/data (if files exist).
+  * If no JSON files are present, a tiny built-in catalog is inserted (idempotent) to enable UI exploration.
 
 JSON catalog seeding (idempotent):
 - Place the following optional files under career_planner_backend/data:
