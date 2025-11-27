@@ -484,10 +484,16 @@ def seed_full() -> Dict[str, Any]:
 
         if use_fallback:
             ds = _fallback_dataset()
+            # Insert in dependency-safe order and flush after each to ensure ids exist
             r_ins, r_upd = _upsert_roles(db, ds["roles"])
+            db.flush()
             c_ins, c_upd = _upsert_competencies(db, ds["competencies"])
-            a_ins, a_upd = _upsert_role_adjacency(db, ds["role_adjacency"])
+            db.flush()
+            # role_competencies depend on roles and competencies
             m_ins, m_upd = _upsert_role_competencies(db, ds["role_competencies"])
+            db.flush()
+            # role_adjacency depends on roles
+            a_ins, a_upd = _upsert_role_adjacency(db, ds["role_adjacency"])
             su_ins, su_upd = _upsert_simple_users(db, ds["simple_users"])
             p_ins, p_upd = _upsert_plans(db, ds["plans"])
             gti, gtu = _attach_goals_by_title(db, ds["goals_by_title"])
@@ -520,9 +526,12 @@ def seed_full() -> Dict[str, Any]:
                 summary["skipped_files"].append("goals.json")
 
             r_ins, r_upd = _upsert_roles(db, roles or [])
+            db.flush()
             c_ins, c_upd = _upsert_competencies(db, competencies or [])
-            a_ins, a_upd = _upsert_role_adjacency(db, adjacency or [])
+            db.flush()
             m_ins, m_upd = _upsert_role_competencies(db, mappings or [])
+            db.flush()
+            a_ins, a_upd = _upsert_role_adjacency(db, adjacency or [])
             su_ins, su_upd = _upsert_simple_users(db, users_simple or [])
             p_ins, p_upd = _upsert_plans(db, plans or [])
             g_ins, g_upd = _upsert_goals(db, goals or [])
