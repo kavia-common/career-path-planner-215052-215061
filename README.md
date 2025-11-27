@@ -2,6 +2,10 @@
 
 Backend setup notes:
 - Configure DATABASE_URL via environment or .env file inside career_planner_backend (see .env.example).
+- Optional CORS origins: set CORS_ORIGINS (comma-separated) e.g., http://localhost:3000,http://127.0.0.1:3000. Defaults to "*" for development.
+- Health endpoints:
+  * GET /           -> {"message":"Healthy"}
+  * GET /health/db  -> database connectivity status
 - The FastAPI backend will auto-create a minimal schema (including roles/competencies/adjacency/mappings) and seed demo data on first start.
 - Optional: Place JSON files under career_planner_backend/data (roles.json, competencies.json, role_adjacency.json, role_competencies.json, users.json, plans.json, goals.json) to seed the catalog on startup or via the full seeding CLI. Seeding is idempotent and missing files are skipped with warnings.
 - Optional direct-DB endpoints (if Supabase REST is not configured): GET /db/roles, /db/competencies, /db/roles/{id}/adjacent
