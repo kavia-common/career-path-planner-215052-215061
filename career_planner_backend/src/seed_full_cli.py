@@ -238,14 +238,14 @@ def _upsert_role_adjacency(db: Session, items: List[Dict[str, Any]]) -> Tuple[in
 
 def _upsert_simple_users(db: Session, items: List[Dict[str, Any]]) -> Tuple[int, int]:
     """
-    Upsert into simple users table (serial id, name, email unique) for /db/users.
+    Upsert into simple demo_users table (serial id, name, email unique) for /db/users.
     JSON format: [{ "name": "...", "email": "..." }, ...]
     """
     ins = 0
     upd = 0
     # Make sure table exists
     db.execute(text("""
-        CREATE TABLE IF NOT EXISTS users (
+        CREATE TABLE IF NOT EXISTS demo_users (
             id SERIAL PRIMARY KEY,
             name VARCHAR(100),
             email VARCHAR(100) UNIQUE
@@ -256,14 +256,14 @@ def _upsert_simple_users(db: Session, items: List[Dict[str, Any]]) -> Tuple[int,
         name = it.get("name")
         if not email:
             continue
-        row = db.execute(text("SELECT name FROM users WHERE email=:e"), {"e": email}).first()
+        row = db.execute(text("SELECT name FROM demo_users WHERE email=:e"), {"e": email}).first()
         if row:
             if row[0] != name:
-                db.execute(text("UPDATE users SET name=:n WHERE email=:e"), {"n": name, "e": email})
+                db.execute(text("UPDATE demo_users SET name=:n WHERE email=:e"), {"n": name, "e": email})
                 upd += 1
         else:
             db.execute(text(
-                "INSERT INTO users (name, email) VALUES (:n,:e) ON CONFLICT (email) DO NOTHING"
+                "INSERT INTO demo_users (name, email) VALUES (:n,:e) ON CONFLICT (email) DO NOTHING"
             ), {"n": name, "e": email})
             ins += 1
     return ins, upd
@@ -479,7 +479,7 @@ def seed_full() -> Dict[str, Any]:
         # Minimal table existence
         _ensure_catalog_tables(db)
 
-        # Ensure simple users demo table and seed Alice/Bob baseline
+        # Ensure simple demo_users table and seed Alice/Bob baseline
         ensure_simple_users_table_and_seed()
 
         if use_fallback:
@@ -504,7 +504,7 @@ def seed_full() -> Dict[str, Any]:
                 "competencies": f"ins:{c_ins},upd:{c_upd}",
                 "role_adjacency": f"ins:{a_ins},upd:{a_upd}",
                 "role_competencies": f"ins:{m_ins},upd:{m_upd}",
-                "users(simple)": f"ins:{su_ins},upd:{su_upd}",
+                "demo_users(simple)": f"ins:{su_ins},upd:{su_upd}",
                 "career_plans": f"ins:{p_ins},upd:{p_upd}",
                 "goals": f"ins:{gti},upd:{gtu}",
             }

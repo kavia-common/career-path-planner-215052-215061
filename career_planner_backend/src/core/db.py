@@ -142,25 +142,26 @@ def _exec_sql_statements(statements: List[str]) -> dict:
 
 def ensure_simple_users_table_and_seed() -> dict:
     """
-    Ensure a simple 'users' table (id serial, name, email unique) exists and seed sample rows.
+    Ensure a simple 'demo_users' table (id serial, name, email unique) exists and seed sample rows.
 
-    This is separate from the ORM User table used for Supabase profiles. It matches the request:
-    - CREATE TABLE IF NOT EXISTS users ( id SERIAL PRIMARY KEY, name VARCHAR(100), email VARCHAR(100) UNIQUE );
-    - INSERT INTO users (name, email) VALUES ('Alice Example','alice@example.com') ON CONFLICT (email) DO NOTHING;
-    - INSERT INTO users (name, email) VALUES ('Bob Example','bob@example.com') ON CONFLICT (email) DO NOTHING;
+    This is separate from the ORM User table used for Supabase profiles.
+    We intentionally use a non-conflicting table name: demo_users.
+    - CREATE TABLE IF NOT EXISTS demo_users ( id SERIAL PRIMARY KEY, name VARCHAR(100), email VARCHAR(100) UNIQUE );
+    - INSERT INTO demo_users (name, email) VALUES ('Alice Example','alice@example.com') ON CONFLICT (email) DO NOTHING;
+    - INSERT INTO demo_users (name, email) VALUES ('Bob Example','bob@example.com') ON CONFLICT (email) DO NOTHING;
 
     Returns:
         dict: {ok: bool, executed: int, details?: str}
     """
     stmts = [
-        "CREATE TABLE IF NOT EXISTS users ( id SERIAL PRIMARY KEY, name VARCHAR(100), email VARCHAR(100) UNIQUE )",
-        "INSERT INTO users (name, email) VALUES ('Alice Example','alice@example.com') ON CONFLICT (email) DO NOTHING",
-        "INSERT INTO users (name, email) VALUES ('Bob Example','bob@example.com') ON CONFLICT (email) DO NOTHING",
+        "CREATE TABLE IF NOT EXISTS demo_users ( id SERIAL PRIMARY KEY, name VARCHAR(100), email VARCHAR(100) UNIQUE )",
+        "INSERT INTO demo_users (name, email) VALUES ('Alice Example','alice@example.com') ON CONFLICT (email) DO NOTHING",
+        "INSERT INTO demo_users (name, email) VALUES ('Bob Example','bob@example.com') ON CONFLICT (email) DO NOTHING",
     ]
     res = _exec_sql_statements(stmts)
     # concise log to stdout
     try:
-        print(f"[users-seed] ok={res.get('ok')} executed={res.get('executed')} details={res.get('details', '')}".strip())
+        print(f"[demo_users-seed] ok={res.get('ok')} executed={res.get('executed')} details={res.get('details', '')}".strip())
     except Exception:
         pass
     return res
@@ -183,7 +184,7 @@ def seed_minimal_data() -> dict:
     # Also ensure the simple demo users table (serial id, name, email) requested for /db/users
     users_simple = ensure_simple_users_table_and_seed()
     if users_simple.get("ok"):
-        summary.append(f"users(simple):{users_simple.get('executed')}")
+        summary.append(f"demo_users(simple):{users_simple.get('executed')}")
 
     with SessionLocal() as db:
         # Users
