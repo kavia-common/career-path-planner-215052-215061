@@ -16,4 +16,8 @@ If you must run from the repository root, use:
 
 Database configuration:
 - Set DATABASE_URL in your environment (see .env.example for format). Neon/Supabase Postgres URLs are supported.
-- On startup, the app pings the DB and logs status. You can also GET /health/db to verify connectivity.
+- On startup, the app:
+  * pings the DB,
+  * creates the initial schema (users, career_plans, goals) if missing,
+  * and seeds minimal demo data idempotently (demo user, one plan, one goal).
+- You can GET /health/db to verify connectivity.

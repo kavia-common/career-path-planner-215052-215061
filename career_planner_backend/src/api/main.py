@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.core.settings import get_settings, Settings
-from src.core.db import ping_db
+from src.core.db import ping_db, init_db, seed_minimal_data
 from src.routers import (
     roles,
     competencies,
@@ -105,17 +105,26 @@ def create_app() -> FastAPI:
     async def _verify_db_on_startup() -> None:
         """
         Startup hook to verify database connectivity once the app boots.
-        Logs are implicit via returned dict; failure does not crash app to allow non-DB endpoints.
+        - Pings DB
+        - Creates schema if absent
+        - Seeds minimal data idempotently
         """
         result = ping_db()
         # We avoid raising to keep app responsive even if DB is temporarily unavailable.
         # This can be enhanced to use proper logging framework.
+        import sys
         if not result.get("ok"):
-            # Simple print to stderr to surface in container logs
-            import sys
             print(f"[startup] DB ping failed: {result.get('details')}", file=sys.stderr)
-        else:
-            print("[startup] DB ping OK", flush=True)
+            return
+        print("[startup] DB ping OK", flush=True)
+
+        try:
+            init_db()
+            print("[startup] DB schema ensured (create_all).", flush=True)
+            seed_result = seed_minimal_data()
+            print(f"[startup] Seed: {seed_result}", flush=True)
+        except Exception as e:
+            print(f"[startup] DB init/seed error: {e}", file=sys.stderr)
 
     return app
 
