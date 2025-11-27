@@ -472,6 +472,35 @@ def _fallback_dataset() -> Dict[str, List[Dict[str, Any]]]:
     }
 
 
+def _ensure_users_for_plans(db: Session, plan_items: List[Dict[str, Any]]) -> Tuple[int, int]:
+    """
+    Ensure each distinct user_id in plans exists in the ORM users table to satisfy FK on career_plans.user_id.
+    Creates a placeholder user row if missing (id, optional email/name derived from id).
+    Returns (inserted_count, updated_count=0).
+    """
+    if not plan_items:
+        return 0, 0
+    ins = 0
+    seen = set()
+    for it in plan_items:
+        uid = it.get("user_id")
+        if not uid or uid in seen:
+            continue
+        seen.add(uid)
+        row = db.execute(text("SELECT id FROM users WHERE id=:id"), {"id": uid}).first()
+        if not row:
+            # Create minimal placeholder user; admin False by default
+            # Use deterministic email if it looks like a UUID string, else generic.
+            email = f"{uid}@example.local" if isinstance(uid, str) and len(uid) >= 8 else None
+            full_name = f"User {uid}"
+            db.execute(
+                text("INSERT INTO users (id, email, full_name, is_admin) VALUES (:id,:email,:full_name,:is_admin)"),
+                {"id": uid, "email": email, "full_name": full_name, "is_admin": False},
+            )
+            ins += 1
+    return ins, 0
+
+
 def _attach_goals_by_title(db: Session, goals_by_title: List[Dict[str, Any]]) -> Tuple[int, int]:
     """
     Attach goals by resolving plan_id from plan title (used by fallback dataset).
@@ -554,6 +583,8 @@ def seed_full() -> Dict[str, Any]:
             mapped_adj = _translate_adjacency_codes_to_ids(db, ds["role_adjacency"])
             a_ins, a_upd = _upsert_role_adjacency(db, mapped_adj)
             su_ins, su_upd = _upsert_simple_users(db, ds["simple_users"])
+            # Ensure ORM users exist for plan FKs
+            u_ins, _ = _ensure_users_for_plans(db, ds["plans"])
             p_ins, p_upd = _upsert_plans(db, ds["plans"])
             gti, gtu = _attach_goals_by_title(db, ds["goals_by_title"])
 
@@ -564,6 +595,7 @@ def seed_full() -> Dict[str, Any]:
                 "role_adjacency": f"ins:{a_ins},upd:{a_upd}",
                 "role_competencies": f"ins:{m_ins},upd:{m_upd}",
                 "demo_users(simple)": f"ins:{su_ins},upd:{su_upd}",
+                "users(orm-for-plans)": f"ins:{u_ins},upd:0",
                 "career_plans": f"ins:{p_ins},upd:{p_upd}",
                 "goals": f"ins:{gti},upd:{gtu}",
             }
@@ -594,6 +626,8 @@ def seed_full() -> Dict[str, Any]:
             mapped_adj = _translate_adjacency_codes_to_ids(db, adjacency or [])
             a_ins, a_upd = _upsert_role_adjacency(db, mapped_adj)
             su_ins, su_upd = _upsert_simple_users(db, users_simple or [])
+            # Ensure ORM users exist for JSON-provided plans
+            u_ins, _ = _ensure_users_for_plans(db, plans or [])
             p_ins, p_upd = _upsert_plans(db, plans or [])
             g_ins, g_upd = _upsert_goals(db, goals or [])
 
@@ -604,6 +638,7 @@ def seed_full() -> Dict[str, Any]:
                 "role_adjacency": f"ins:{a_ins},upd:{a_upd}",
                 "role_competencies": f"ins:{m_ins},upd:{m_upd}",
                 "users(simple)": f"ins:{su_ins},upd:{su_upd}",
+                "users(orm-for-plans)": f"ins:{u_ins},upd:0",
                 "career_plans": f"ins:{p_ins},upd:{p_upd}",
                 "goals": f"ins:{g_ins},upd:{g_upd}",
             }
