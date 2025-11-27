@@ -67,7 +67,13 @@ async def startup_non_blocking_db_init() -> None:
     description="Liveness probe; does not require database. Returns service-level ok.",
 )
 def health_check():
-    """Basic liveness response indicating the API process is running."""
+    """
+    PUBLIC_INTERFACE
+    Basic liveness response indicating the API process is running.
+
+    Returns:
+        dict: {"status": "ok", "service": "alive"}
+    """
     return {"status": "ok", "service": "alive"}
 
 
@@ -79,7 +85,13 @@ def health_check():
     description="Readiness probe; includes database connectivity check with a quick ping.",
 )
 def readiness_check():
-    """Return readiness info including DB reachability."""
+    """
+    PUBLIC_INTERFACE
+    Return readiness info including DB reachability.
+
+    Returns:
+        dict: {"status": "ready" | "not_ready", "db": <ping result dict>}
+    """
     db = ping_db(max_retries=0)
     return {
         "status": "ready" if db.get("ok") else "not_ready",
@@ -95,7 +107,13 @@ def readiness_check():
     description="Pings the configured PostgreSQL database using DATABASE_URL and returns connectivity status.",
 )
 def db_health():
-    """Return database connectivity status."""
+    """
+    PUBLIC_INTERFACE
+    Return database connectivity status.
+
+    Returns:
+        dict: {"ok": bool, "result": 1} or {"ok": False, "error": "<message>"}
+    """
     return ping_db(max_retries=0)
 
 

@@ -5,9 +5,13 @@ from typing import Generator, Optional
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 from .settings import settings
+
+# Declarative base for ORM models to subclass.
+# PUBLIC_INTERFACE
+Base = declarative_base()
 
 # Lazy engine/session initialization so import of app doesn't fail if DB isn't ready.
 _engine: Optional[Engine] = None
