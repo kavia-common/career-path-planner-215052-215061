@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from ..core.settings import settings
-from ..core.db import ping_db
+from ..core.db import ping_db, init_db
 from ..routers import (
     roles,
     competencies,
@@ -46,16 +46,45 @@ if settings.BACKEND_CORS_ORIGINS:
     )
 
 
+@app.on_event("startup")
+async def startup_non_blocking_db_init() -> None:
+    """
+    Attempt a short DB initialization on startup with retry/backoff, but do not fail app if DB is unavailable.
+    This ensures uvicorn can serve '/' and '/health/*' endpoints even if the database is still initializing.
+    """
+    # Try a modest retry budget; keep delays short so startup isn't blocked for long
+    res = init_db(retries=2, backoff_seconds=0.5)
+    if not res.get("ok"):
+        print(f"[startup] WARN: DB not ready at startup: {res.get('error')}. "
+              f"Service will start and expose /health endpoints; DB-backed routes may fail until ready.")
+
+
 # PUBLIC_INTERFACE
 @app.get(
     "/",
     tags=["health"],
-    summary="Health Check",
-    description="Health check endpoint.\n\nReturns:\n    dict: Simple health response.",
+    summary="Health Check (liveness)",
+    description="Liveness probe; does not require database. Returns service-level ok.",
 )
 def health_check():
-    """Basic health response."""
-    return {"status": "ok"}
+    """Basic liveness response indicating the API process is running."""
+    return {"status": "ok", "service": "alive"}
+
+
+# PUBLIC_INTERFACE
+@app.get(
+    "/health/ready",
+    tags=["health"],
+    summary="Readiness Check",
+    description="Readiness probe; includes database connectivity check with a quick ping.",
+)
+def readiness_check():
+    """Return readiness info including DB reachability."""
+    db = ping_db(max_retries=0)
+    return {
+        "status": "ready" if db.get("ok") else "not_ready",
+        "db": db,
+    }
 
 
 # PUBLIC_INTERFACE
@@ -67,7 +96,7 @@ def health_check():
 )
 def db_health():
     """Return database connectivity status."""
-    return ping_db()
+    return ping_db(max_retries=0)
 
 
 # Register routers

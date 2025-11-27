@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""
+uvicorn entrypoint for the FastAPI app.
+
+Notes:
+- App import does not block on database readiness. The service will start and expose / and /health endpoints,
+  while /health/ready reflects DB status.
+- Configure DATABASE_URL in .env or environment.
+"""
 import os
 import sys
 
