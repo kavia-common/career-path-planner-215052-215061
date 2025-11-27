@@ -19,5 +19,29 @@ Database configuration:
 - On startup, the app:
   * pings the DB,
   * creates the initial schema (users, career_plans, goals) if missing,
-  * and seeds minimal demo data idempotently (demo user, one plan, one goal).
+  * seeds minimal demo data idempotently (demo user, one plan, one goal),
+  * and then attempts JSON-based catalog seeding from career_planner_backend/data (if files exist).
+
+JSON catalog seeding (idempotent):
+- Place the following optional files under career_planner_backend/data:
+  * roles.json
+  * competencies.json
+  * role_adjacency.json
+  * role_competencies.json
+- File formats:
+  * roles.json: [{ "id"?: int, "code": str, "name": str, "summary"?: str }, ...]
+  * competencies.json: [{ "id"?: int, "code": str, "name": str, "category"?: str }, ...]
+  * role_adjacency.json: [{ "from_role_id": int, "to_role_id": int, "weight": number }, ...]
+  * role_competencies.json: [{ "role_id": int, "competency_id": int, "required_level": int }, ...]
+- Missing files are skipped with a warning. Safe to run multiple times.
+- Unique keys used for idempotency:
+  * roles: code
+  * competencies: code
+  * role_adjacency: (from_role_id, to_role_id)
+  * role_competencies: (role_id, competency_id)
+
+Diagnostics:
+- Console will print concise startup messages including JSON seed results, e.g.:
+  [startup] JSON seed: {'ok': True, 'roles': 'ins:10,upd:0', ...}
+
 - You can GET /health/db to verify connectivity.

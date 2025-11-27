@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.core.settings import get_settings, Settings
 from src.core.db import ping_db, init_db, seed_minimal_data
+from src.core.seeder import seed_catalog_from_json
 from src.routers import (
     roles,
     competencies,
@@ -123,6 +124,9 @@ def create_app() -> FastAPI:
             print("[startup] DB schema ensured (create_all).", flush=True)
             seed_result = seed_minimal_data()
             print(f"[startup] Seed: {seed_result}", flush=True)
+            # Seed catalog from JSON files if present
+            catalog = seed_catalog_from_json()
+            print(f"[startup] JSON seed: {catalog}", flush=True)
         except Exception as e:
             print(f"[startup] DB init/seed error: {e}", file=sys.stderr)
 
