@@ -117,3 +117,17 @@ class GapAnalysisResponse(BaseModel):
     """Response payload for gap analysis against a target role."""
     role_id: int = Field(..., description="Target role id for analysis")
     items: List[GapItem] = Field(..., description="List of gap items by competency")
+
+
+# PUBLIC_INTERFACE
+class RoleIn(BaseModel):
+    """Payload to create a new role."""
+    code: str = Field(..., description="Short code for the role")
+    name: str = Field(..., description="Display name of the role")
+    summary: Optional[str] = Field(None, description="Short summary or description for the role")
+
+
+# PUBLIC_INTERFACE
+class RoleListResponse(BaseModel):
+    """Wrapper for listing roles (reserved for future pagination/metadata)."""
+    items: List["Role"] = Field(..., description="List of roles")
