@@ -23,6 +23,11 @@ Database configuration:
   * and then attempts JSON-based catalog seeding from career_planner_backend/data (if files exist).
   * If no JSON files are present, a tiny built-in catalog is inserted (idempotent) to enable UI exploration.
 
+Schema synchronization (Neon):
+- To align Neon with the Excel-derived catalog schema without inserting data, run:
+  python -m src.cli_sync_schema
+  This reads DATABASE_URL and executes idempotent CREATE/ALTER statements for roles, competencies, role_competencies, and role_adjacency, printing concise logs.
+
 JSON catalog seeding (idempotent):
 - Place the following optional files under career_planner_backend/data:
   * roles.json
