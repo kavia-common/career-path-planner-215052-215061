@@ -115,6 +115,57 @@ def _table_empty(db: Session, table_name: str) -> bool:
     return int(count) == 0
 
 
+def _exec_sql_statements(statements: List[str]) -> dict:
+    """
+    Execute a list of raw SQL statements sequentially against the configured engine.
+
+    Args:
+        statements: List of SQL statements to execute.
+
+    Returns:
+        dict: summary with ok flag and count executed.
+    """
+    if engine is None:
+        return {"ok": False, "executed": 0, "details": "No DATABASE_URL configured"}
+    executed = 0
+    try:
+        with engine.begin() as conn:
+            for stmt in statements:
+                if not stmt or not stmt.strip():
+                    continue
+                conn.execute(text(stmt))
+                executed += 1
+        return {"ok": True, "executed": executed}
+    except Exception as e:
+        return {"ok": False, "executed": executed, "details": f"{e.__class__.__name__}: {e}"}
+
+
+def ensure_simple_users_table_and_seed() -> dict:
+    """
+    Ensure a simple 'users' table (id serial, name, email unique) exists and seed sample rows.
+
+    This is separate from the ORM User table used for Supabase profiles. It matches the request:
+    - CREATE TABLE IF NOT EXISTS users ( id SERIAL PRIMARY KEY, name VARCHAR(100), email VARCHAR(100) UNIQUE );
+    - INSERT INTO users (name, email) VALUES ('Alice Example','alice@example.com') ON CONFLICT (email) DO NOTHING;
+    - INSERT INTO users (name, email) VALUES ('Bob Example','bob@example.com') ON CONFLICT (email) DO NOTHING;
+
+    Returns:
+        dict: {ok: bool, executed: int, details?: str}
+    """
+    stmts = [
+        "CREATE TABLE IF NOT EXISTS users ( id SERIAL PRIMARY KEY, name VARCHAR(100), email VARCHAR(100) UNIQUE )",
+        "INSERT INTO users (name, email) VALUES ('Alice Example','alice@example.com') ON CONFLICT (email) DO NOTHING",
+        "INSERT INTO users (name, email) VALUES ('Bob Example','bob@example.com') ON CONFLICT (email) DO NOTHING",
+    ]
+    res = _exec_sql_statements(stmts)
+    # concise log to stdout
+    try:
+        print(f"[users-seed] ok={res.get('ok')} executed={res.get('executed')} details={res.get('details', '')}".strip())
+    except Exception:
+        pass
+    return res
+
+
 def seed_minimal_data() -> dict:
     """
     Idempotent seed routine that inserts minimal rows if tables are empty.
@@ -128,6 +179,12 @@ def seed_minimal_data() -> dict:
     from src.models.orm import User, CareerPlan, Goal  # local import after Base
 
     summary: List[str] = []
+
+    # Also ensure the simple demo users table (serial id, name, email) requested for /db/users
+    users_simple = ensure_simple_users_table_and_seed()
+    if users_simple.get("ok"):
+        summary.append(f"users(simple):{users_simple.get('executed')}")
+
     with SessionLocal() as db:
         # Users
         if _table_empty(db, User.__tablename__):

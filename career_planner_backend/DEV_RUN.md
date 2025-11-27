@@ -46,3 +46,8 @@ Diagnostics:
   [startup] JSON seed: {'ok': True, 'roles': 'ins:10,upd:0', ...}
 
 - You can GET /health/db to verify connectivity.
+
+Additional DB endpoints (demo):
+- GET /db/users — list users from a simple demo `users` table (id, name, email)
+- GET /db/users/{user_id} — fetch a single user by id
+These use DATABASE_URL via SQLAlchemy and auto-create/seed two rows (Alice, Bob) idempotently on startup.

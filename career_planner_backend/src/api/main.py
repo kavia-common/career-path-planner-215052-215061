@@ -75,6 +75,10 @@ def create_app() -> FastAPI:
     from src.routers import catalog_db  # local import to avoid circulars at module import time
     app.include_router(catalog_db.router)
 
+    # Simple DB-backed users endpoints (demo users table)
+    from src.routers import users_db  # type: ignore
+    app.include_router(users_db.router)
+
     @app.get("/", tags=["health"], summary="Health Check")
     def health_check() -> dict:
         """
