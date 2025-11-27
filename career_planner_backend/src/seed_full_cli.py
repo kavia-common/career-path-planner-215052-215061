@@ -182,6 +182,63 @@ def _upsert_competencies(db: Session, items: List[Dict[str, Any]]) -> Tuple[int,
     return inserted, updated
 
 
+def _translate_adjacency_codes_to_ids(db: Session, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Convert adjacency entries that use role codes into entries using numeric ids.
+    Items may have keys (from_role_code,to_role_code) or already numeric ids.
+    """
+    if not items:
+        return []
+    # Build role code->id map
+    rows = db.execute(text("SELECT id, code FROM roles")).fetchall()
+    code_to_id = {r[1]: r[0] for r in rows}
+    converted: List[Dict[str, Any]] = []
+    for it in items:
+        if "from_role_id" in it and "to_role_id" in it:
+            converted.append({"from_role_id": it["from_role_id"], "to_role_id": it["to_role_id"], "weight": float(it["weight"])})
+            continue
+        fr_c = it.get("from_role_code")
+        to_c = it.get("to_role_code")
+        w = it.get("weight")
+        if not fr_c or not to_c or w is None:
+            continue
+        fr_id = code_to_id.get(fr_c)
+        to_id = code_to_id.get(to_c)
+        if fr_id is None or to_id is None:
+            continue
+        converted.append({"from_role_id": fr_id, "to_role_id": to_id, "weight": float(w)})
+    return converted
+
+
+def _translate_mappings_codes_to_ids(db: Session, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Convert role competency mappings using codes to numeric ids.
+    Supports keys (role_code, competency_code) or already numeric ids.
+    """
+    if not items:
+        return []
+    role_rows = db.execute(text("SELECT id, code FROM roles")).fetchall()
+    comp_rows = db.execute(text("SELECT id, code FROM competencies")).fetchall()
+    role_code_to_id = {r[1]: r[0] for r in role_rows}
+    comp_code_to_id = {c[1]: c[0] for c in comp_rows}
+    converted: List[Dict[str, Any]] = []
+    for it in items:
+        if "role_id" in it and "competency_id" in it:
+            converted.append({"role_id": it["role_id"], "competency_id": it["competency_id"], "required_level": int(it["required_level"])})
+            continue
+        rc = it.get("role_code")
+        cc = it.get("competency_code")
+        lvl = it.get("required_level")
+        if not rc or not cc or lvl is None:
+            continue
+        r_id = role_code_to_id.get(rc)
+        c_id = comp_code_to_id.get(cc)
+        if r_id is None or c_id is None:
+            continue
+        converted.append({"role_id": r_id, "competency_id": c_id, "required_level": int(lvl)})
+    return converted
+
+
 def _upsert_role_competencies(db: Session, items: List[Dict[str, Any]]) -> Tuple[int, int]:
     ins = 0
     upd = 0
@@ -364,29 +421,29 @@ def _fallback_dataset() -> Dict[str, List[Dict[str, Any]]]:
         {"code": "DATA", "name": "Data Product Thinking", "category": "Data"},
         {"code": "PORT", "name": "Portfolio Capital Allocation", "category": "Portfolio"},
     ]
-    # Adjacency will reference numeric ids after insert; fallback uses first 6 roles assuming IDs start at 1
+    # Adjacency expressed using role codes to avoid assumptions about numeric IDs
     adjacency = [
-        {"from_role_id": 1, "to_role_id": 2, "weight": 0.9},
-        {"from_role_id": 1, "to_role_id": 6, "weight": 0.7},
-        {"from_role_id": 2, "to_role_id": 1, "weight": 0.7},
-        {"from_role_id": 2, "to_role_id": 9, "weight": 0.6},
-        {"from_role_id": 3, "to_role_id": 1, "weight": 0.5},
-        {"from_role_id": 4, "to_role_id": 2, "weight": 0.5},
-        {"from_role_id": 5, "to_role_id": 2, "weight": 0.4},
-        {"from_role_id": 9, "to_role_id": 2, "weight": 0.6},
+        {"from_role_code": "CA", "to_role_code": "CTO", "weight": 0.9},
+        {"from_role_code": "CA", "to_role_code": "CPTO", "weight": 0.7},
+        {"from_role_code": "CTO", "to_role_code": "CA", "weight": 0.7},
+        {"from_role_code": "CTO", "to_role_code": "AppDev", "weight": 0.6},
+        {"from_role_code": "CIO", "to_role_code": "CA", "weight": 0.5},
+        {"from_role_code": "CDAO", "to_role_code": "CTO", "weight": 0.5},
+        {"from_role_code": "CInO", "to_role_code": "CTO", "weight": 0.4},
+        {"from_role_code": "AppDev", "to_role_code": "CTO", "weight": 0.6},
     ]
-    # A handful of mappings (assumes first few ids)
+    # A handful of mappings using codes (robust to non-1-based ids)
     mappings = [
-        {"role_id": 1, "competency_id": 1, "required_level": 4},   # CA needs DX 4
-        {"role_id": 1, "competency_id": 2, "required_level": 4},   # RA 4
-        {"role_id": 1, "competency_id": 3, "required_level": 4},   # ST 4
-        {"role_id": 2, "competency_id": 1, "required_level": 4},   # CTO DX 4
-        {"role_id": 2, "competency_id": 6, "required_level": 3},   # AI risk 3
-        {"role_id": 2, "competency_id": 7, "required_level": 3},   # FinOps 3
-        {"role_id": 2, "competency_id": 8, "required_level": 3},   # Org/Talent 3
-        {"role_id": 2, "competency_id": 10, "required_level": 3},  # Storytelling 3
-        {"role_id": 3, "competency_id": 7, "required_level": 3},   # CIO FinOps 3
-        {"role_id": 9, "competency_id": 1, "required_level": 3},   # AppDev DX 3
+        {"role_code": "CA", "competency_code": "DX", "required_level": 4},   # CA needs DX 4
+        {"role_code": "CA", "competency_code": "RA", "required_level": 4},   # RA 4
+        {"role_code": "CA", "competency_code": "ST", "required_level": 4},   # ST 4
+        {"role_code": "CTO", "competency_code": "DX", "required_level": 4},  # CTO DX 4
+        {"role_code": "CTO", "competency_code": "AI", "required_level": 3},  # AI risk 3
+        {"role_code": "CTO", "competency_code": "FIN", "required_level": 3}, # FinOps 3
+        {"role_code": "CTO", "competency_code": "ORG", "required_level": 3}, # Org/Talent 3
+        {"role_code": "CTO", "competency_code": "STORY", "required_level": 3}, # Storytelling 3
+        {"role_code": "CIO", "competency_code": "FIN", "required_level": 3}, # CIO FinOps 3
+        {"role_code": "AppDev", "competency_code": "DX", "required_level": 3}, # AppDev DX 3
     ]
     simple_users = [
         {"name": "Alice Example", "email": "alice@example.com"},
@@ -489,11 +546,13 @@ def seed_full() -> Dict[str, Any]:
             db.flush()
             c_ins, c_upd = _upsert_competencies(db, ds["competencies"])
             db.flush()
-            # role_competencies depend on roles and competencies
-            m_ins, m_upd = _upsert_role_competencies(db, ds["role_competencies"])
+            # role_competencies depend on roles and competencies; map codes->ids robustly
+            mapped_mappings = _translate_mappings_codes_to_ids(db, ds["role_competencies"])
+            m_ins, m_upd = _upsert_role_competencies(db, mapped_mappings)
             db.flush()
-            # role_adjacency depends on roles
-            a_ins, a_upd = _upsert_role_adjacency(db, ds["role_adjacency"])
+            # role_adjacency depends on roles; map codes->ids robustly
+            mapped_adj = _translate_adjacency_codes_to_ids(db, ds["role_adjacency"])
+            a_ins, a_upd = _upsert_role_adjacency(db, mapped_adj)
             su_ins, su_upd = _upsert_simple_users(db, ds["simple_users"])
             p_ins, p_upd = _upsert_plans(db, ds["plans"])
             gti, gtu = _attach_goals_by_title(db, ds["goals_by_title"])
@@ -529,9 +588,11 @@ def seed_full() -> Dict[str, Any]:
             db.flush()
             c_ins, c_upd = _upsert_competencies(db, competencies or [])
             db.flush()
-            m_ins, m_upd = _upsert_role_competencies(db, mappings or [])
+            mapped_mappings = _translate_mappings_codes_to_ids(db, mappings or [])
+            m_ins, m_upd = _upsert_role_competencies(db, mapped_mappings)
             db.flush()
-            a_ins, a_upd = _upsert_role_adjacency(db, adjacency or [])
+            mapped_adj = _translate_adjacency_codes_to_ids(db, adjacency or [])
+            a_ins, a_upd = _upsert_role_adjacency(db, mapped_adj)
             su_ins, su_upd = _upsert_simple_users(db, users_simple or [])
             p_ins, p_upd = _upsert_plans(db, plans or [])
             g_ins, g_upd = _upsert_goals(db, goals or [])
