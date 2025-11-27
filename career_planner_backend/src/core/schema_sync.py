@@ -201,13 +201,21 @@ def run_schema_sync() -> dict:
 
     total_exec = 0
     errors: List[str] = []
+    per_section: List[str] = []
     with engine.begin() as conn:
-        for ensure in (_ensure_roles, _ensure_competencies, _ensure_role_competencies, _ensure_role_adjacency):
+        for name, ensure in (
+            ("roles", _ensure_roles),
+            ("competencies", _ensure_competencies),
+            ("role_competencies", _ensure_role_competencies),
+            ("role_adjacency", _ensure_role_adjacency),
+        ):
             executed, errs = ensure(conn)
             total_exec += executed
             errors.extend(errs)
+            # concise per-section log
+            per_section.append(f"{name}:{executed}")
 
-    return {"ok": len(errors) == 0, "executed": total_exec, "errors": errors}
+    return {"ok": len(errors) == 0, "executed": total_exec, "sections": ", ".join(per_section), "errors": errors}
 
 
 def main() -> None:

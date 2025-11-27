@@ -15,20 +15,41 @@ Logs are concise and suitable for CI output.
 Usage:
     python -m src.cli_sync_schema
 """
-from src.core.db import init_db
+from src.core.db import init_db, ping_db, engine
 from src.core.schema_sync import run_schema_sync
-from src.core.db import ping_db
+from sqlalchemy import text
 
 
 def main() -> None:
+    # Verify DATABASE_URL presence and connectivity first
     status = ping_db()
     print(f"[cli] db_ping: {status}")
     if not status.get("ok"):
+        # Explicit guidance if missing env
+        print("[cli] ERROR: DATABASE_URL missing or unreachable. Ensure DATABASE_URL is set and points to Neon Postgres.")
         return
+
+    # Ensure ORM base tables are created (safe if already present)
     init_db()
     print("[cli] create_all: done")
+
+    # Run schema synchronization (idempotent CREATE/ALTER)
     sync = run_schema_sync()
-    print(f"[cli] schema_sync: {sync}")
+    print(f"[cli] schema_sync: ok={sync.get('ok')} executed={sync.get('executed')}")
+
+    # Show concise warnings if any errors captured
+    errors = sync.get("errors") or []
+    for e in errors:
+        print(f"[cli] WARN: {e}")
+
+    # Final connectivity check via a quick SELECT 1
+    try:
+        assert engine is not None
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        print("[cli] verify: SELECT 1 OK")
+    except Exception as e:
+        print(f"[cli] verify: SELECT 1 FAILED: {e.__class__.__name__}: {e}")
 
 
 if __name__ == "__main__":
