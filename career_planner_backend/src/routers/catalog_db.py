@@ -15,18 +15,14 @@ router = APIRouter(prefix="/db", tags=["roles", "competencies", "adjacency"])
 # PUBLIC_INTERFACE
 @router.get("/roles", response_model=List[RoleSchema], summary="List roles (DB)")
 def list_roles_db(db: Session = Depends(get_db), limit: int = Query(500, ge=1, le=10000)) -> List[RoleSchema]:
-    """
-    List roles directly from Neon via SQLAlchemy (bypasses Supabase REST).
-    """
+    """List roles directly from PostgreSQL via SQLAlchemy."""
     rows = db.execute(select(Role).order_by(Role.id).limit(limit)).scalars().all()
     return [RoleSchema(id=r.id, code=r.code, name=r.name, summary=r.summary) for r in rows]
 
 # PUBLIC_INTERFACE
 @router.get("/competencies", response_model=List[CompetencySchema], summary="List competencies (DB)")
 def list_competencies_db(db: Session = Depends(get_db), limit: int = Query(1000, ge=1, le=20000)) -> List[CompetencySchema]:
-    """
-    List competencies directly from Neon via SQLAlchemy.
-    """
+    """List competencies directly from PostgreSQL via SQLAlchemy."""
     rows = db.execute(select(Competency).order_by(Competency.id).limit(limit)).scalars().all()
     return [CompetencySchema(id=c.id, code=c.code, name=c.name, category=c.category) for c in rows]
 
@@ -37,9 +33,7 @@ def list_adjacent_roles_db(
     db: Session = Depends(get_db),
     limit: int = Query(1000, ge=1, le=10000),
 ) -> List[RoleAdjacencySchema]:
-    """
-    Return adjacency edges originating from the given role.
-    """
+    """Return adjacency edges originating from the given role."""
     stmt = select(RoleAdjacency).where(RoleAdjacency.from_role_id == role_id).order_by(RoleAdjacency.weight.desc()).limit(limit)
     rows = db.execute(stmt).scalars().all()
     return [

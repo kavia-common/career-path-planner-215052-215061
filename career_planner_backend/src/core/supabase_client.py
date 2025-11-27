@@ -1,116 +1,30 @@
-from typing import Any, Dict, List, Optional
+"""Deprecated Supabase utilities.
 
-import httpx
+This module is retained as a stub to avoid import errors after removing Supabase.
+All functions return neutral values and do not perform any external calls.
+"""
 
-from src.core.settings import get_settings
+from typing import Optional, Dict, Any
 
 
-class SupabaseClient:
-    """
-    Lightweight wrapper around Supabase PostgREST endpoints.
+# PUBLIC_INTERFACE
+def get_supabase() -> None:
+    """Return None; Supabase has been removed."""
+    return None
 
-    Modes:
-    - user_mode(token): uses user's JWT to honor RLS for end-user requests.
-    - anon_mode(): uses anon/public key to allow public reads where RLS permits.
-    - admin_mode(): uses service role key to bypass RLS for administrative operations.
-    """
 
-    def __init__(self, token: Optional[str] = None, admin: bool = False) -> None:
-        settings = get_settings()
-        self.base_url: str = f"{settings.supabase_url}/rest/v1"
-        self.apikey: str = settings.supabase_anon_key if not admin else settings.supabase_service_role_key
-        # Authorization:
-        # - admin: service role key
-        # - user: provided JWT
-        # - anon (no token): anon key to support public reads
-        if admin:
-            auth_token = self.apikey
-        else:
-            auth_token = token if token is not None else self.apikey
-        self.authorization: str = f"Bearer {auth_token}"
-        self._client: httpx.AsyncClient = httpx.AsyncClient(timeout=20.0)
+# PUBLIC_INTERFACE
+def parse_bearer(token: Optional[str]) -> Optional[str]:
+    """Extract the token from an Authorization header of the form 'Bearer <token>'."""
+    if not token:
+        return None
+    parts = token.split()
+    if len(parts) == 2 and parts[0].lower() == "bearer":
+        return parts[1]
+    return None
 
-    @classmethod
-    # PUBLIC_INTERFACE
-    def user_mode(cls, token: str) -> "SupabaseClient":
-        """Create client using user's JWT (RLS enabled)."""
-        return cls(token=token, admin=False)
 
-    @classmethod
-    # PUBLIC_INTERFACE
-    def anon_mode(cls) -> "SupabaseClient":
-        """Create client using anon/public key (RLS applies to 'anon' role)."""
-        return cls(token=None, admin=False)
-
-    @classmethod
-    # PUBLIC_INTERFACE
-    def admin_mode(cls) -> "SupabaseClient":
-        """Create client using service role key (admin; RLS bypass)."""
-        return cls(token=None, admin=True)
-
-    def _headers(self) -> Dict[str, str]:
-        return {
-            "apikey": self.apikey,
-            "Authorization": self.authorization,
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-        }
-
-    async def get(self, path: str, params: Optional[Dict[str, Any]] = None) -> httpx.Response:
-        url = f"{self.base_url}/{path}"
-        return await self._client.get(url, headers=self._headers(), params=params or {})
-
-    async def post(self, path: str, json: Any) -> httpx.Response:
-        url = f"{self.base_url}/{path}"
-        headers = self._headers()
-        # Ensure we get the created representation back
-        headers["Prefer"] = "return=representation"
-        return await self._client.post(url, headers=headers, json=json)
-
-    async def patch(self, path: str, json: Any, params: Optional[Dict[str, Any]] = None) -> httpx.Response:
-        url = f"{self.base_url}/{path}"
-        headers = self._headers()
-        headers["Prefer"] = "return=representation"
-        return await self._client.patch(url, headers=headers, json=json, params=params or {})
-
-    async def upsert(self, path: str, json: Any) -> httpx.Response:
-        url = f"{self.base_url}/{path}"
-        headers = self._headers()
-        headers["Prefer"] = "resolution=merge-duplicates,return=representation"
-        return await self._client.post(url, headers=headers, json=json)
-
-    async def delete(self, path: str, params: Optional[Dict[str, Any]] = None) -> httpx.Response:
-        url = f"{self.base_url}/{path}"
-        return await self._client.delete(url, headers=self._headers(), params=params or {})
-
-    async def close(self) -> None:
-        await self._client.aclose()
-
-    # PUBLIC_INTERFACE
-    async def list_paginated(
-        self,
-        table: str,
-        select: str,
-        limit: int = 1000,
-        offset: int = 0,
-        extra_filters: Optional[Dict[str, Any]] = None,
-    ) -> List[dict]:
-        """
-        List rows from a table with basic pagination.
-
-        Args:
-            table: table or view name
-            select: PostgREST select clause
-            limit: max rows to return
-            offset: offset for pagination
-            extra_filters: extra PostgREST filters like {"role_id": "eq.1"}
-
-        Returns:
-            List of row objects.
-        """
-        params: Dict[str, Any] = {"select": select, "limit": limit, "offset": offset}
-        if extra_filters:
-            params.update(extra_filters)
-        resp = await self.get(table, params=params)
-        resp.raise_for_status()
-        return resp.json()
+# PUBLIC_INTERFACE
+def decode_supabase_jwt(token: Optional[str]) -> Dict[str, Any]:
+    """Return empty payload; JWT handling via Supabase is not used."""
+    return {}

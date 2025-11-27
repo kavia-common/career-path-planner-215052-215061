@@ -31,9 +31,7 @@ def list_users_db(
     limit: int = Query(100, ge=1, le=1000, description="Max rows to return"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
 ) -> List[DBUser]:
-    """
-    List users from the simple demo_users table (id, name, email).
-    """
+    """List users from the simple demo_users table (id, name, email)."""
     rows = db.execute(
         text("SELECT id, name, email FROM demo_users ORDER BY id LIMIT :limit OFFSET :offset"),
         {"limit": limit, "offset": offset},
@@ -52,9 +50,7 @@ def get_user_db(
     user_id: int = Path(..., description="User id (serial)"),
     db: Session = Depends(get_db),
 ) -> DBUser:
-    """
-    Return a single user by id or 404 if not found.
-    """
+    """Return a single user by id or 404 if not found."""
     row = db.execute(
         text("SELECT id, name, email FROM demo_users WHERE id = :id"),
         {"id": user_id},
