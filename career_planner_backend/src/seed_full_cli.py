@@ -26,6 +26,19 @@ import json
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
+from dotenv import load_dotenv
+
+# Load .env for CLI execution
+load_dotenv(override=False)
+
+# Normalize accidental "psql '...'" copy-paste in .env to just the URL
+dbu = os.getenv("DATABASE_URL")
+if dbu and dbu.strip().startswith("psql "):
+    import shlex
+    parts = shlex.split(dbu)
+    if len(parts) >= 2:
+        os.environ["DATABASE_URL"] = parts[1]
+
 import httpx
 from sqlalchemy import text
 from sqlalchemy.orm import Session

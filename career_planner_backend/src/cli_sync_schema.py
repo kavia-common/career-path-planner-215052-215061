@@ -15,6 +15,21 @@ Logs are concise and suitable for CI output.
 Usage:
     python -m src.cli_sync_schema
 """
+import os
+from dotenv import load_dotenv
+
+# Ensure .env is loaded when running as a CLI
+load_dotenv(override=False)
+
+# Normalize accidental "psql '...'" copy-paste in .env to just the URL
+dbu = os.getenv("DATABASE_URL")
+if dbu and dbu.strip().startswith("psql "):
+    # Extract content within single or double quotes
+    import shlex
+    parts = shlex.split(dbu)
+    if len(parts) >= 2:
+        os.environ["DATABASE_URL"] = parts[1]
+
 from src.core.db import init_db, ping_db, engine
 from src.core.schema_sync import run_schema_sync
 from sqlalchemy import text
