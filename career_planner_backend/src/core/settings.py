@@ -1,6 +1,8 @@
 from functools import lru_cache
 from typing import List
-from pydantic import BaseSettings, AnyHttpUrl, Field, validator
+
+from pydantic import AnyHttpUrl, Field, field_validator
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -20,12 +22,15 @@ class Settings(BaseSettings):
         default_factory=list, description="Allowed CORS origins"
     )
 
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    # Pydantic v2 settings configuration (replaces Config in v1)
+    model_config = {
+        "case_sensitive": True,
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+    }
 
-    @validator("DATABASE_URL")
+    @field_validator("DATABASE_URL")
+    @classmethod
     def validate_db_url(cls, v: str) -> str:
         if not v or not isinstance(v, str):
             raise ValueError("DATABASE_URL is required and must be a string")
