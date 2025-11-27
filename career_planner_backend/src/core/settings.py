@@ -9,7 +9,16 @@ from urllib.parse import quote_plus
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables.
+
     Uses pydantic-settings v2; unknown/extra env vars are ignored so imports never fail when .env contains extra keys.
+
+    Database URL precedence:
+    - If DATABASE_URL is set, it is used as-is (after minor normalization downstream).
+    - Otherwise, a URL is constructed from POSTGRES_* legacy variables (HOST, PORT, DB, USER, PASSWORD, SSLMODE).
+      This allows compatibility with both modern and legacy deployments.
+
+    Default behavior:
+    - HOST defaults to 0.0.0.0, PORT defaults to 8000 (uvicorn_app overrides to 3001 if PORT is not set).
     """
 
     # App metadata

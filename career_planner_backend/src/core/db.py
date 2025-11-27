@@ -42,7 +42,14 @@ def _normalize_database_url(raw: str) -> str:
 def _ensure_engine() -> Optional[Engine]:
     """
     Ensure global SQLAlchemy engine exists without throwing on failure.
-    Returns None if creation fails (e.g., invalid URL); logs concise error.
+
+    Behavior:
+    - Reads DATABASE_URL from settings (which may be constructed from POSTGRES_*).
+    - Normalizes URLs that are accidentally wrapped/quoted (e.g., `psql "<url>"`).
+    - Returns None if creation fails (e.g., invalid URL); logs concise error.
+
+    Returns:
+        Optional[Engine]: a SQLAlchemy Engine or None if initialization failed.
     """
     global _engine, _SessionLocal
     if _engine is not None:
