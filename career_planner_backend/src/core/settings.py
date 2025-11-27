@@ -2,6 +2,7 @@ from functools import lru_cache
 from typing import List, Optional
 
 from pydantic import AnyHttpUrl, Field, field_validator
+from pydantic_core import ValidationInfo
 from pydantic_settings import BaseSettings
 from urllib.parse import quote_plus
 
@@ -54,13 +55,15 @@ class Settings(BaseSettings):
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
-    def build_or_validate_db_url(cls, v, values):
+    def build_or_validate_db_url(cls, v, info: ValidationInfo):
         """If DATABASE_URL is missing, try to build it from legacy POSTGRES_* variables.
         Ensures the app can start with various env setups.
         """
         if v and isinstance(v, str) and v.strip():
             return v.strip()
 
+        # Pydantic v2: access other field values via info.data (a dict of parsed data so far)
+        values = getattr(info, "data", {}) or {}
         host = values.get("POSTGRES_HOST")
         db = values.get("POSTGRES_DB")
         user = values.get("POSTGRES_USER")
