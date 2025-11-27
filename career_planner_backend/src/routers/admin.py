@@ -7,7 +7,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.post("/ingest", summary="Trigger ingestion job", description="Creates an ingestion_runs entry to trigger ingestion (admin only).")
-async def trigger_ingestion(authorization: str = Header(...), user: AuthUser = Depends(AdminGuard())):
+async def trigger_ingestion(authorization: str = Header(...), user: AuthUser = Depends(AdminGuard)):
     # Use admin mode to ensure permission even if RLS locks table
     client = SupabaseClient.admin_mode()
     body = {"triggered_by": user.id, "status": "queued"}
@@ -20,7 +20,7 @@ async def trigger_ingestion(authorization: str = Header(...), user: AuthUser = D
 
 
 @router.get("/ingest/latest", summary="Get latest ingestion run", description="Gets latest ingestion run for monitoring (admin only).")
-async def get_latest_ingestion(user: AuthUser = Depends(AdminGuard())):
+async def get_latest_ingestion(user: AuthUser = Depends(AdminGuard)):
     client = SupabaseClient.admin_mode()
     resp = await client.get("ingestion_runs", params={"select": "id,triggered_by,status,started_at,finished_at", "order": "id.desc", "limit": 1})
     resp.raise_for_status()

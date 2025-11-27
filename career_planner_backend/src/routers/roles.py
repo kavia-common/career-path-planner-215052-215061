@@ -93,7 +93,7 @@ async def get_role(
 async def create_role(
     payload: RoleIn,
     authorization: str = Header(..., description="Bearer <Supabase JWT>"),
-    _: AuthUser = Depends(AdminGuard()),
+    _: AuthUser = Depends(AdminGuard),
 ):
     """
     Create a new role in the catalog.
