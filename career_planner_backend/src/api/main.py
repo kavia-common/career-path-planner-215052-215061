@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.core.settings import get_settings, Settings
+from src.core.db import ping_db
 from src.routers import (
     roles,
     competencies,
@@ -78,6 +79,43 @@ def create_app() -> FastAPI:
             dict: Simple health response.
         """
         return {"message": "Healthy"}
+
+    @app.get(
+        "/health/db",
+        tags=["health"],
+        summary="Database Health Check",
+        description="Pings the configured PostgreSQL database using DATABASE_URL and returns connectivity status.",
+        responses={
+            200: {
+                "description": "Database connectivity status",
+                "content": {"application/json": {}},
+            }
+        },
+    )
+    def db_health() -> dict:
+        """
+        Database health check endpoint.
+
+        Returns:
+            dict: Contains ok (bool) and details (str).
+        """
+        return ping_db()
+
+    @app.on_event("startup")
+    async def _verify_db_on_startup() -> None:
+        """
+        Startup hook to verify database connectivity once the app boots.
+        Logs are implicit via returned dict; failure does not crash app to allow non-DB endpoints.
+        """
+        result = ping_db()
+        # We avoid raising to keep app responsive even if DB is temporarily unavailable.
+        # This can be enhanced to use proper logging framework.
+        if not result.get("ok"):
+            # Simple print to stderr to surface in container logs
+            import sys
+            print(f"[startup] DB ping failed: {result.get('details')}", file=sys.stderr)
+        else:
+            print("[startup] DB ping OK", flush=True)
 
     return app
 

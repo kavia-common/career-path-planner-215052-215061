@@ -13,3 +13,7 @@ Alternate direct uvicorn command (ensure you are in career_planner_backend direc
 
 If you must run from the repository root, use:
   python -m career_planner_backend.uvicorn_app
+
+Database configuration:
+- Set DATABASE_URL in your environment (see .env.example for format). Neon/Supabase Postgres URLs are supported.
+- On startup, the app pings the DB and logs status. You can also GET /health/db to verify connectivity.
